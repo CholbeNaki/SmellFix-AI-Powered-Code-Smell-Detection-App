@@ -5,6 +5,9 @@ import 'screens/gettingstarted.dart';
 import 'screens/login.dart';
 import 'screens/home_screen.dart';
 import 'screens/signup_screen.dart';
+import 'screens/history.dart';
+import 'screens/analysis_screen.dart';
+import 'screens/menu_screen.dart';
 
 void main() {
   runApp(const SmellFixApp());
@@ -33,7 +36,11 @@ class SmellFixApp extends StatelessWidget {
     return MaterialApp(
       title: 'SmellFix',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(),
+      theme: ThemeData(
+        fontFamily: "RobotoMono",
+        scaffoldBackgroundColor: Colors.white,
+        primaryColor: const Color(0xFF0A0A23),
+      ),
       home: FutureBuilder<Widget>(
         future: _getInitialScreen(),
         builder: (context, snapshot) {
@@ -51,6 +58,9 @@ class SmellFixApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/signup': (context) => const SignUpScreen(),
         '/getting_started': (context) => const GettingStartedScreen(),
+        '/history': (context) => const HistoryScreen(),
+        '/analysis': (context) => const AnalysisScreen(),
+        '/menu': (context) => const MenuScreen(),
       },
     );
   }

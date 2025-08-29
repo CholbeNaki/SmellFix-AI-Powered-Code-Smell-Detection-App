@@ -47,8 +47,10 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    // Implement analysis logic later
-    print("Analyzing: ${inputText.isNotEmpty ? inputText : selectedFileName}");
+    // Navigate to Analysis Screen instead of just printing
+    Navigator.pushNamed(context, "/analysis", arguments: {
+      'input': inputText.isNotEmpty ? inputText : selectedFileName,
+    });
   }
 
   @override
@@ -67,7 +69,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   SvgPicture.asset('assets/icons/top_left_logo.svg', height: 24),
-                  SvgPicture.asset('assets/icons/Hamburger.svg', height: 24),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pushNamed(context, "/menu"); // Hamburger opens Menu
+                    },
+                    child: SvgPicture.asset('assets/icons/Hamburger.svg', height: 24),
+                  ),
                 ],
               ),
             ),
@@ -111,7 +118,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 fontFamily: 'RobotoMono',
                                 fontSize: 18,
                                 color: Color(0xFF0A0A23)
-
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -252,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: onAnalyzePressed,
+                          onPressed: onAnalyzePressed, // Now navigates to Analysis Screen
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF0A0A23),
                             padding: const EdgeInsets.symmetric(vertical: 14),
