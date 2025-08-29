@@ -112,7 +112,6 @@ class MenuScreen extends StatelessWidget {
               iconPath,
               width: 26,
               height: 26,
-              color: Colors.white,
             ),
             const SizedBox(width: 14),
             Text(

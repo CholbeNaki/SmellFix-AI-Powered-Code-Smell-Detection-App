@@ -51,7 +51,7 @@ class HistoryScreen extends StatelessWidget {
                       SvgPicture.asset(
                         "assets/icons/history.svg",
                         width: width * 0.06,
-                        color: Colors.white,
+
                       ),
                       const SizedBox(width: 8),
                       const Text(
