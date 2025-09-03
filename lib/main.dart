@@ -1,4 +1,3 @@
-// 📁 lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/gettingstarted.dart';
@@ -8,6 +7,7 @@ import 'screens/signup_screen.dart';
 import 'screens/history.dart';
 import 'screens/analysis_screen.dart';
 import 'screens/menu_screen.dart';
+import 'package:flutter_apps/screens/historyview_screen.dart';
 
 void main() {
   runApp(const SmellFixApp());
@@ -61,6 +61,7 @@ class SmellFixApp extends StatelessWidget {
         '/history': (context) => const HistoryScreen(),
         '/analysis': (context) => const AnalysisScreen(),
         '/menu': (context) => const MenuScreen(),
+        '/historyview': (context) => const HistoryViewScreen(),
       },
     );
   }

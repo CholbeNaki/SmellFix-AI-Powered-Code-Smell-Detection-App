@@ -1,7 +1,65 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter_apps/services/api_service.dart';
+import 'package:logger/logger.dart';
+import 'package:intl/intl.dart';
 
-class SignUpScreen extends StatelessWidget {
+var logger = Logger();
+
+class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
+
+  @override
+  _SignUpScreenState createState() => _SignUpScreenState();
+}
+
+class _SignUpScreenState extends State<SignUpScreen> {
+  bool _isPasswordVisible = false;
+
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _dobController = TextEditingController();
+  final TextEditingController _bioController = TextEditingController();
+
+  File? _image;
+
+  // Pick image file
+  void _pickImage() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+      );
+
+      if (result != null) {
+        setState(() {
+          _image = File(result.files.single.path!);
+        });
+      }
+    } on PlatformException catch (e) {
+      logger.e("Error fetching image: $e");
+    }
+  }
+
+  // open the date picker
+  Future<void> _selectDateOfBirth() async {
+    DateTime? selectedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+
+    if (selectedDate != null) {
+      // selected date to 'YYYY-MM-DD'
+      String formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
+      setState(() {
+        _dobController.text = formattedDate; // Set the formatted date in the TextField
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -10,12 +68,16 @@ class SignUpScreen extends StatelessWidget {
       body: Column(
         children: [
           const SizedBox(height: 60),
-
-          // Profile Upload Placeholder
-          CircleAvatar(
-            radius: 60,
-            backgroundColor: Colors.grey.shade300,
-            child: const Text("Upload Photo", style: TextStyle(color: Colors.black)),
+          GestureDetector(
+            onTap: _pickImage,
+            child: CircleAvatar(
+              radius: 60,
+              backgroundColor: Colors.grey.shade300,
+              backgroundImage: _image != null ? FileImage(_image!) : null,
+              child: _image == null
+                  ? const Text("Upload Photo", style: TextStyle(color: Colors.black))
+                  : null,
+            ),
           ),
           const SizedBox(height: 20),
 
@@ -32,15 +94,22 @@ class SignUpScreen extends StatelessWidget {
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
-                  _buildTextField("Your Name?"),
+                  _buildTextField("Your Name?", controller: _nameController),
                   const SizedBox(height: 16),
-                  _buildTextField("What will we call you? [username]"),
+                  _buildTextField("What will we call you? [username]", controller: _usernameController),
                   const SizedBox(height: 16),
-                  _buildTextField("Password?", isPassword: true),
+                  _buildTextField("Password?", isPassword: true, controller: _passwordController),
                   const SizedBox(height: 16),
-                  _buildTextField("Date of Birth"),
+
+                  // Date of Birth TextField with date picker
+                  GestureDetector(
+                    onTap: _selectDateOfBirth,
+                    child: AbsorbPointer(
+                      child: _buildTextField("Date of Birth", controller: _dobController),
+                    ),
+                  ),
                   const SizedBox(height: 16),
-                  _buildTextField("What Do You Do Exactly?"),
+                  _buildTextField("What Do You Do Exactly?", controller: _bioController),
 
                   const SizedBox(height: 32),
                   SizedBox(
@@ -54,7 +123,7 @@ class SignUpScreen extends StatelessWidget {
                         ),
                       ),
                       onPressed: () {
-                        Navigator.pushReplacementNamed(context, "/home"); // later add home
+                        _signUp();
                       },
                       child: const Text(
                         "Confirm",
@@ -75,9 +144,30 @@ class SignUpScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField(String hint, {bool isPassword = false}) {
+
+  void _signUp() async {
+    try {
+      var response = await ApiService().signUp(
+        _nameController.text,
+        _usernameController.text,
+        _passwordController.text,
+        _dobController.text,
+        _bioController.text,
+        _image,
+      );
+      Navigator.pushReplacementNamed(context, '/login');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Sign up failed: $e'),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
+  Widget _buildTextField(String hint, {bool isPassword = false, TextEditingController? controller}) {
     return TextField(
-      obscureText: isPassword,
+      controller: controller,
+      obscureText: isPassword && !_isPasswordVisible,
       decoration: InputDecoration(
         hintText: hint,
         filled: true,
@@ -86,7 +176,18 @@ class SignUpScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(5),
           borderSide: BorderSide.none,
         ),
-        suffixIcon: isPassword ? const Icon(Icons.visibility_outlined) : null,
+        suffixIcon: isPassword
+            ? IconButton(
+          icon: Icon(
+            _isPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+          ),
+          onPressed: () {
+            setState(() {
+              _isPasswordVisible = !_isPasswordVisible;
+            });
+          },
+        )
+            : null,
       ),
     );
   }

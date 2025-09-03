@@ -29,6 +29,10 @@ migrate_working_dir/
 .pub/
 build/
 
+#BackEnd files
+node_modules/
+.env
+
 # Flutter docs
 **/doc/api/
 

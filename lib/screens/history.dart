@@ -1,22 +1,158 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_apps/services/api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:logger/logger.dart';
 
-class HistoryScreen extends StatelessWidget {
+var logger = Logger();
+
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
+
+  @override
+  _HistoryScreenState createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  List<Map<String, dynamic>> historyItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _getHistory();
+  }
+
+  //Backend
+  Future<void> _getHistory() async {
+    try {
+      String? token = await _getToken();
+      if (token == null) throw Exception('No token found');
+
+      var response = await ApiService().getHistory(token);
+
+      setState(() {
+        historyItems = List<Map<String, dynamic>>.from(response);
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to load history: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteHistory(String historyId) async {
+    try {
+      String? token = await _getToken();
+      if (token == null) throw Exception('No token found');
+
+      await ApiService().deleteHistory(token, historyId);
+
+      setState(() {
+        historyItems.removeWhere((item) => item['_id'] == historyId);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("History item deleted successfully"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete item: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _renameHistory(String historyId, String newFileName) async {
+    try {
+      String? token = await _getToken();
+      if (token == null) throw Exception('No token found');
+
+      await ApiService().renameHistory(token, historyId, newFileName);
+
+      setState(() {
+        int index = historyItems.indexWhere((item) => item['_id'] == historyId);
+        if (index != -1) {
+          historyItems[index]['fileName'] = newFileName;
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('History item renamed'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to rename item: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _getHistoryItem(String historyId) {
+    Navigator.pushNamed(context, '/historyview', arguments: {'historyId': historyId});
+  }
+
+  Future<String?> _getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
+
+  // Function to show rename dialog
+  Future<void> _showRenameDialog(String historyId, String currentName) async {
+    TextEditingController _controller = TextEditingController(text: currentName);
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Rename History Item'),
+          content: TextField(
+            controller: _controller,
+            decoration: const InputDecoration(
+              labelText: 'New File Name',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                String newName = _controller.text.trim();
+                if (newName.isNotEmpty) {
+                  _renameHistory(historyId, newName);
+                }
+                Navigator.pop(context);
+              },
+              child: const Text('Rename'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final width = size.width;
     final height = size.height;
-
-    // Example data
-    final historyItems = [
-      "Java Algorithms",
-      "Chat Bot Homepage",
-      "Another",
-      "Another",
-    ];
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A23),
@@ -36,23 +172,15 @@ class HistoryScreen extends StatelessWidget {
                   // Back button
                   GestureDetector(
                     onTap: () {
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        '/home',
-                            (route) => false,
-                      );
+                      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
                     },
-                    child: const Icon(Icons.arrow_back, color: Colors.white),
+                    child: SvgPicture.asset("assets/icons/Back.svg", height: 24),
                   ),
 
                   // Title
                   Row(
                     children: [
-                      SvgPicture.asset(
-                        "assets/icons/history.svg",
-                        width: width * 0.06,
-
-                      ),
+                      SvgPicture.asset("assets/icons/history.svg", width: width * 0.06),
                       const SizedBox(width: 8),
                       const Text(
                         "History",
@@ -71,7 +199,7 @@ class HistoryScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.pushNamed(context, "/menu");
                     },
-                    child: const Icon(Icons.menu, color: Colors.white),
+                    child: SvgPicture.asset("assets/icons/Hamburger.svg", height: 24),
                   ),
                 ],
               ),
@@ -99,14 +227,12 @@ class HistoryScreen extends StatelessWidget {
                       child: ListView.builder(
                         itemCount: historyItems.length,
                         itemBuilder: (context, index) {
+                          final item = historyItems[index];
                           return Container(
                             margin: EdgeInsets.only(bottom: height * 0.02),
                             padding: EdgeInsets.all(width * 0.04),
                             decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Colors.black,
-                                width: 1,
-                              ),
+                              border: Border.all(color: Colors.black, width: 1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Column(
@@ -114,7 +240,7 @@ class HistoryScreen extends StatelessWidget {
                               children: [
                                 // File name
                                 Text(
-                                  historyItems[index],
+                                  item['fileName'] ?? 'Unnamed',
                                   style: const TextStyle(
                                     fontFamily: "RobotoMono",
                                     fontSize: 16,
@@ -129,10 +255,7 @@ class HistoryScreen extends StatelessWidget {
                                   children: [
                                     // View
                                     GestureDetector(
-                                      onTap: () {
-                                        Navigator.pushNamed(
-                                            context, "/analysis");
-                                      },
+                                      onTap: () => _getHistoryItem(item['_id']),
                                       child: const Text(
                                         "View >",
                                         style: TextStyle(
@@ -146,9 +269,7 @@ class HistoryScreen extends StatelessWidget {
 
                                     // Rename
                                     GestureDetector(
-                                      onTap: () {
-                                        // TODO: implement rename functionality
-                                      },
+                                      onTap: () => _showRenameDialog(item['_id'], item['fileName'] ?? 'Unnamed'),
                                       child: Row(
                                         children: [
                                           const Text(
@@ -172,9 +293,7 @@ class HistoryScreen extends StatelessWidget {
 
                                     // Delete
                                     GestureDetector(
-                                      onTap: () {
-                                        // TODO: implement delete functionality
-                                      },
+                                      onTap: () => _deleteHistory(item['_id']),
                                       child: Row(
                                         children: [
                                           const Text(
@@ -202,55 +321,11 @@ class HistoryScreen extends StatelessWidget {
                         },
                       ),
                     ),
-
-                    // Pagination
-                    Column(
-                      children: [
-                        const Text(
-                          "Page 1 of 14",
-                          style: TextStyle(
-                            fontFamily: "RobotoMono",
-                            fontSize: 14,
-                            color: Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _pageButton("<<"),
-                            const SizedBox(width: 4),
-                            _pageButton("<"),
-                            const SizedBox(width: 4),
-                            _pageButton(">"),
-                            const SizedBox(width: 4),
-                            _pageButton(">>"),
-                          ],
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _pageButton(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.black, width: 1),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontFamily: "RobotoMono",
-          fontSize: 14,
-          color: Colors.black,
         ),
       ),
     );

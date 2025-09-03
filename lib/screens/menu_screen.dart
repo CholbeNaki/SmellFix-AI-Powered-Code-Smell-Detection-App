@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MenuScreen extends StatelessWidget {
   const MenuScreen({super.key});
@@ -28,7 +29,7 @@ class MenuScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.pop(context);
                     },
-                    child: const Icon(Icons.close, color: Colors.white, size: 28),
+                    child: const Icon(Icons.close, color: Colors.white, size: 40),
                   ),
                 ],
               ),
@@ -40,7 +41,7 @@ class MenuScreen extends StatelessWidget {
             Column(
               children: [
                 SvgPicture.asset(
-                  "assets/icons/icon.svg", // your logo
+                  "assets/icons/icon.svg",
                   width: width * 0.5,
                 ),
               ],
@@ -48,7 +49,7 @@ class MenuScreen extends StatelessWidget {
 
             const SizedBox(height: 50),
 
-            // Menu items centered
+            // Menu items
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
@@ -57,6 +58,9 @@ class MenuScreen extends StatelessWidget {
                   _buildMenuItem(
                     "Account Settings",
                     "assets/icons/accsettings.svg",
+                    onTap: () {
+                      Navigator.pushNamed(context, "/accountSettings");
+                    },
                   ),
                   _buildMenuItem(
                     "History",
@@ -68,7 +72,7 @@ class MenuScreen extends StatelessWidget {
 
                   const SizedBox(height: 30),
 
-                  // Dark mode toggle
+                  // Dark mode toggle (not implemented)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -90,6 +94,17 @@ class MenuScreen extends StatelessWidget {
                         inactiveThumbColor: Colors.grey,
                       ),
                     ],
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  // Sign out
+                  _buildMenuItem(
+                    "Sign Out",
+                    "assets/icons/sign_out_icon.svg",
+                    onTap: () {
+                      signOut(context);
+                    },
                   ),
                 ],
               ),
@@ -126,5 +141,12 @@ class MenuScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+
+  void signOut(BuildContext context) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    Navigator.pushReplacementNamed(context, '/login');
   }
 }

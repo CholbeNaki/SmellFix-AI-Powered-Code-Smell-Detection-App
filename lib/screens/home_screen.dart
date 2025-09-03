@@ -1,6 +1,11 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_apps/services/api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:logger/logger.dart';
+
+var logger = Logger();
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,6 +21,13 @@ class _HomeScreenState extends State<HomeScreen> {
   bool fileSelected = false;
   bool isTextEntered = false;
 
+  String userName = '';
+  String userBio = '';
+  String userPhoto = 'assets/images/avatar.png'; // Default image
+  String userUsername = '';
+
+  String? filePath;
+
   @override
   void initState() {
     super.initState();
@@ -24,7 +36,49 @@ class _HomeScreenState extends State<HomeScreen> {
         isTextEntered = _chatController.text.trim().isNotEmpty;
       });
     });
+
+    _fetchUserData();
   }
+
+  Future<void> _fetchUserData() async {
+    try {
+      String? token = await _getToken();
+      if (token == null) {
+        throw Exception('No token found');
+      }
+
+      var userData = await ApiService().getUserData(token);
+
+      setState(() {
+        userName = userData['name'] ?? 'Unknown';
+        userUsername = userData['username'] ?? 'username';
+        userBio = userData['bio'] ?? 'No bio available';
+        userPhoto = userData['image'] != null
+            ? 'http://10.0.2.2:5000/' + userData['image'].replaceAll('\\', '/') // Replace backslashes with forward slashes for compatibility
+            : 'assets/images/avatar.png'; // Default image if not available
+      });
+    } catch (e) {
+      logger.e("Error fetching user data: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to load user data: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<String?> _getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('token');
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No token found, please log in again')),
+      );
+    }
+    return token;
+  }
+
 
   Future<void> pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -35,22 +89,48 @@ class _HomeScreenState extends State<HomeScreen> {
     if (result != null && result.files.isNotEmpty) {
       setState(() {
         selectedFileName = result.files.single.name;
+        filePath = result.files.single.path;
         fileSelected = true;
       });
     }
   }
 
-  void onAnalyzePressed() {
-    String inputText = _chatController.text.trim();
+  void cancelFileSelection() {
+    setState(() {
+      selectedFileName = null;
+      fileSelected = false;
+    });
+  }
 
-    if (inputText.isEmpty && selectedFileName == null) {
+  Future<void> onAnalyzePressed() async {
+    if (filePath == null && _chatController.text.trim().isEmpty) {
       return;
     }
 
-    // Navigate to Analysis Screen instead of just printing
-    Navigator.pushNamed(context, "/analysis", arguments: {
-      'input': inputText.isNotEmpty ? inputText : selectedFileName,
-    });
+    try {
+      String? token = await _getToken();
+      if (token != null && filePath != null) {
+        var response = await ApiService().uploadFile(token, filePath!);
+
+        if (response['history'] != null && response['history']['_id'] != null) {
+          String historyId = response['history']['_id'];  // Get the historyId
+          if (response["msg"] == "File uploaded successfully") {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('File uploaded successfully!')),
+            );
+            Navigator.pushNamed(context, "/analysis", arguments: {'historyId': historyId,});
+          } else {
+            throw Exception('Failed to upload file1');
+          }
+        } else {
+          throw Exception('No history data in response');
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to upload file2: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   @override
@@ -71,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   SvgPicture.asset('assets/icons/top_left_logo.svg', height: 24),
                   GestureDetector(
                     onTap: () {
-                      Navigator.pushNamed(context, "/menu"); // Hamburger opens Menu
+                      Navigator.pushNamed(context, "/menu");
                     },
                     child: SvgPicture.asset('assets/icons/Hamburger.svg', height: 24),
                   ),
@@ -99,12 +179,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           CircleAvatar(
                             radius: 80,
-                            backgroundImage: AssetImage('assets/images/avatar.png'),
+                            backgroundImage: userPhoto.startsWith('http')
+                                ? NetworkImage(userPhoto)
+                                : AssetImage(userPhoto) as ImageProvider,
                           ),
                           const SizedBox(height: 10),
-                          const Text(
-                            'Joeylene Rivera',
-                            style: TextStyle(
+                          Text(
+                            userName,
+                            style: const TextStyle(
                               fontFamily: 'RobotoMono',
                               fontWeight: FontWeight.bold,
                               fontSize: 29,
@@ -112,29 +194,29 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           const SizedBox(height: 2),
-                          const Text(
-                            '@jorenrui',
-                            style: TextStyle(
-                                fontFamily: 'RobotoMono',
-                                fontSize: 18,
-                                color: Color(0xFF0A0A23)
+                          Text(
+                            userUsername,
+                            style: const TextStyle(
+                              fontFamily: 'RobotoMono',
+                              fontSize: 18,
+                              color: Color(0xFF0A0A23),
                             ),
                           ),
                           const SizedBox(height: 2),
-                          const Text(
-                            'Web Developer who has\na thing for design',
+                          Text(
+                            userBio,
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                                fontFamily: 'RobotoMono',
-                                fontSize: 18,
-                                color: Color(0xFF0A0A23)
+                            style: const TextStyle(
+                              fontFamily: 'RobotoMono',
+                              fontSize: 18,
+                              color: Color(0xFF0A0A23),
                             ),
                           ),
                           const SizedBox(height: 20),
                         ],
                       ),
 
-                      // Mode toggle
+                      // Mode toggle buttons
                       Row(
                         children: [
                           Expanded(
@@ -211,10 +293,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ? Text(
                                 'File: $selectedFileName',
                                 style: const TextStyle(
-                                    fontFamily: 'RobotoMono',
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w300,
-                                    color: Color(0xFF0A0A23)
+                                  fontFamily: 'RobotoMono',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w300,
+                                  color: Color(0xFF0A0A23),
                                 ),
                               )
                                   : TextField(
@@ -224,27 +306,49 @@ class _HomeScreenState extends State<HomeScreen> {
                                   hintText: 'Paste your code or\nupload a file [.py/.java]',
                                   border: InputBorder.none,
                                   hintStyle: TextStyle(
-                                      fontFamily: 'RobotoMono',
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w300,
-                                      color: Color(0xFF0A0A23)
-                                  ),
-                                ),
-                                style: const TextStyle(
                                     fontFamily: 'RobotoMono',
                                     fontSize: 16,
                                     fontWeight: FontWeight.w300,
-                                    color: Color(0xFF0A0A23)
+                                    color: Color(0xFF0A0A23),
+                                  ),
+                                ),
+                                style: const TextStyle(
+                                  fontFamily: 'RobotoMono',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w300,
+                                  color: Color(0xFF0A0A23),
                                 ),
                               ),
                             ),
-                            if (!isTextEntered)
+                            if (fileSelected)
+                              Row(
+                                children: [
+                                  // Cancel Button
+                                  GestureDetector(
+                                    onTap: cancelFileSelection,
+                                    child: SvgPicture.asset(
+                                      'assets/icons/codefileCancel.svg',
+                                      width: 24,
+                                      height: 24,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  // Show the cancel icon only when a file is selected
+                                  GestureDetector(
+                                    onTap: pickFile,
+                                    child: SvgPicture.asset(
+                                      'assets/icons/attachment_icon1.svg',
+                                      width: 24,
+                                      height: 24,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            if (!fileSelected)
                               GestureDetector(
                                 onTap: pickFile,
                                 child: SvgPicture.asset(
-                                  fileSelected
-                                      ? 'assets/icons/attachment_icon2.svg'
-                                      : 'assets/icons/attachment_icon1.svg',
+                                  'assets/icons/attachment_icon1.svg',
                                   width: 24,
                                   height: 24,
                                 ),
@@ -258,7 +362,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: onAnalyzePressed, // Now navigates to Analysis Screen
+                          onPressed: onAnalyzePressed,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF0A0A23),
                             padding: const EdgeInsets.symmetric(vertical: 14),

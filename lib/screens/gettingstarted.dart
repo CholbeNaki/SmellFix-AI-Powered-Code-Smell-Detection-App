@@ -13,12 +13,12 @@ class GettingStartedScreen extends StatelessWidget {
       backgroundColor: const Color(0xFF0A0A23),
       body: SingleChildScrollView(
         child: SizedBox(
-          height: screenHeight, // ensures it fills the screen height
+          height: screenHeight,
           child: Column(
             children: [
               SizedBox(height: screenHeight * 0.08),
 
-              // Logo
+          // Logo
           SvgPicture.asset(
             "assets/icons/icon.svg",
             width: screenWidth * 0.5,
@@ -41,7 +41,7 @@ class GettingStartedScreen extends StatelessWidget {
 
               SizedBox(height: screenHeight * 0.05),
 
-              // White rounded container
+
               Expanded(
                 child: Container(
                   width: double.infinity,
@@ -99,7 +99,7 @@ class GettingStartedScreen extends StatelessWidget {
 
                       SizedBox(height: screenHeight * 0.02),
 
-                      // Login Button (outlined)
+                      // Login Button
                       SizedBox(
                         width: double.infinity,
                         height: screenHeight * 0.065,
