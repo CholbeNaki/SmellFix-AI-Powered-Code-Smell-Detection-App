@@ -31,6 +31,7 @@ build/
 
 #BackEnd files
 node_modules/
+uploads/
 .env
 
 # Flutter docs
